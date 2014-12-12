@@ -1,0 +1,495 @@
+
+
+<http://shiny.rstudio.com/tutorial/lesson3/>
+<http://shiny.rstudio.com/gallery/widget-gallery.html>
+<http://shiny.rstudio.com/articles/shinyapps.html>
+**some prerequisites**
+Shiny doesn't really require it, but as with all web programming, a little knowledge of html, css
+and js is very helpful
+There are too many tutorials online to count for getting basic proficiency in these topics to count.
+Shiny uses bootstrap (no relation to the statistics bootstrap) style, which (to me) seems to look
+nice and renders well on mobile platforms
+·
+html gives a web page structure and sectioning as well as markup instructions
+css gives the style
+js for interactivity
+
+**what else is out there?**
+.Creating any solution requiring fairly deep knowledge of web client/server programming
+.OpenCPU by Jerome Ooms, is a really neat project providing an API for calling R from web
+documents
+
+- And he even hosts an OpenCPU server, but you can create your own
+
+
+let's make this prediction
+```{r}
+diabetesRisk <- function(glucose) glucose/200
+```
+
+
+**Getting started**
+.Make sure you have the latest release of R installed
+.If on windows, make sure that you have Rtools installed
+```{r}
+#install.packages("shiny")
+#libray(shiny)
+```
+
+
+.Great tutorial at <http://rstudio.github.io/shiny/tutorial/>
+.Basically, this lecture is walking through that tutorial offering some of our insights
+.Note, some of the proposed interactive plotting uses of Shiny could be handled by the very
+simple manipulate function rstudio manipulate
+.Also, rCharts is will be covered in a different lecture.
+
+
+**A shiny project**
+A shiny project is a directory containing at least two parts
+.One named ui.R (for user interface) controls how it looks.
+.One named server.R that controls what it does.
+
+
+**ui.R**
+```{r}
+library(shiny)
+shinyUI(pageWithSidebar(
+ headerPanel("Data science FTW!"),
+ sidebarPanel(
+ h3('Sidebar text')
+ ),
+ mainPanel(
+ h3('Main Panel text')
+ )
+))
+
+#h3 means the third level html heading
+```
+
+
+**server.R**
+```{r}
+library(shiny)
+shinyServer(
+ function(input, output) {
+ }
+)
+```
+
+
+
+**To run it**
+
+In R, change to the directories with these files and type runApp()
+.or put the path to the directory as an argument
+.It should open an browser window with the app running
+
+
+
+
+**R functions for html markup**
+ui.R
+```{r}
+
+shinyUI(pageWithSidebar(
+ headerPanel("Illustrating markup"),
+ sidebarPanel(
+ h1('Sidebar panel'),
+ h1('H1 text'),
+ h2('H2 Text'),
+ h3('H3 Text'),
+ h4('H4 Text')
+ ),
+ mainPanel(
+ h3('Main Panel text'),
+ code('some code'),
+ p('some ordinary text')
+ )
+))
+```
+
+
+
+**illustrating inputs ui.R**
+```{r}
+shinyUI(pageWithSidebar(
+ headerPanel("Illustrating inputs"),
+ sidebarPanel(
+ numericInput('id1', 'Numeric input, labeled id1', 0, min = 0, max = 10, step = 1),
+ checkboxGroupInput("id2", "Checkbox",
+ c("Value 1" = "1",
+ "Value 2" = "2",
+ "Value 3" = "3")),
+ dateInput("date", "Date:")
+ ),
+ mainPanel(
+ )
+))
+```
+
+
+
+**Part of ui.R**
+```{r}
+ mainPanel(
+ h3('Illustrating outputs'),
+ h4('You entered'),
+ verbatimTextOutput("oid1"),
+ h4('You entered'),
+ verbatimTextOutput("oid2"),
+ h4('You entered'),
+ verbatimTextOutput("odate")
+ )
+```
+
+
+ h4('You entered'),
+ 
+
+**server.R**
+```{r}
+shinyServer(
+ function(input, output) {
+ output$oid1 <- renderPrint({input$id1})
+ output$oid2 <- renderPrint({input$id2})
+ output$odate <- renderPrint({input$date})
+ }
+)
+```
+
+
+
+**Let's build our prediction function**
+ 1) ui.R
+```{r}
+shinyUI(
+ pageWithSidebar(
+ # Application title
+ headerPanel("Diabetes prediction"),
+ sidebarPanel(
+ numericInput('glucose', 'Glucose mg/dl', 90, min = 50, max = 200, step = 5),
+ submitButton('Submit')
+ ),
+ mainPanel(
+ h3('Results of prediction'),
+ h4('You entered'),
+ verbatimTextOutput("inputValue"),
+ h4('Which resulted in a prediction of '),
+ verbatimTextOutput("prediction")
+ )
+ )
+)f
+```
+
+
+2) server.R
+```{r}
+diabetesRisk <- function(glucose) glucose / 200
+shinyServer(
+ function(input, output) {
+ output$inputValue <- renderPrint({input$glucose})
+ output$prediction <- renderPrint({diabetesRisk(input$glucose)})
+ }
+)
+```
+
+
+****Shiny 2***
+**Details**
+
+Code that you put before shinyServer in the server.R function gets called once when you do runApp()
+Code inside the unnamed function of shinyServer(function(input, output){ but not in a reactive statement will run once for every new user (or page refresh)
+Code in reactive functions of shinyServer get run repeatedly as needed when new values are entered (reactive functions are those like render*)
+
+
+**Experiment (code in the slidify document)**
+ui.R
+```{r}
+shinyUI(pageWithSidebar(
+  headerPanel("Hello Shiny!"),
+  sidebarPanel(
+      textInput(inputId="text1", label = "Input Text1"),
+      textInput(inputId="text2", label = "Input Text2")
+  ),
+  mainPanel(
+      p('Output text1'),
+      textOutput('text1'),
+      p('Output text2'),
+      textOutput('text2'),
+      p('Output text3'),
+      textOutput('text3'),
+      p('Outside text'),
+      textOutput('text4'),
+      p('Inside text, but non-reactive'),
+      textOutput('text5')
+  )
+))
+```
+
+
+**Reactive expressions*
+
+Sometimes to speed up your app, you want reactive operations (those operations that depend on widget input values) to be performed outside of a render*1 statement
+For example, you want to do some code that gets reused in several render* statements and don't want to recalculate it for each
+The reactive function is made for this purpose
+
+.Example
+
+server.R
+```{r}
+shinyServer(
+  function(input, output) {
+    x <- reactive({as.numeric(input$text1)+100})      
+    output$text1 <- renderText({x()                          })
+    output$text2 <- renderText({x() + as.numeric(input$text2)})
+  }
+)
+```
+
+
+
+**As opposed to**
+
+```{r}
+shinyServer(
+  function(input, output) {
+    output$text1 <- renderText({as.numeric(input$text1)+100  })
+    output$text2 <- renderText({as.numeric(input$text1)+100 + 
+        as.numeric(input$text2)})
+  }
+)
+```
+
+
+
+**Non-reactive reactivity (what?)**
+
+Sometimes you don't want shiny to immediately perform reactive calculations from widget inputs
+In other words, you want something like a submit button
+
+ui.R
+```{r}
+shinyUI(pageWithSidebar(
+  headerPanel("Hello Shiny!"),
+  sidebarPanel(
+      textInput(inputId="text1", label = "Input Text1"),
+      textInput(inputId="text2", label = "Input Text2"),
+      actionButton("goButton", "Go!")
+  ),
+  mainPanel(
+      p('Output text1'),
+      textOutput('text1'),
+      p('Output text2'),
+      textOutput('text2'),
+      p('Output text3'),
+      textOutput('text3')
+  )
+))
+```
+
+
+server.R
+```{r}
+shinyServer(
+  function(input, output) {
+    output$text1 <- renderText({input$text1})
+    output$text2 <- renderText({input$text2})
+    output$text3 <- renderText({
+        input$goButton # create a depedency on the go button
+        isolate(paste(input$text1, input$text2))
+    })
+  }
+)
+```
+
+
+
+#Manipulate
+
+Suppose that you want to create a quick interactive graphic
+You have to do it now
+The intended users also use Rstudio
+manipulate is a really cool solution that is often all you need to quickly make interactive graphics
+Documentation
+
+Manipulate is well documented at the Rstudio web site here
+<http://www.rstudio.com/ide/docs/advanced/manipulate>
+From there, try this
+
+```{r}
+library(manipulate)
+manipulate(plot(1:x), x = slider(1, 100))
+```
+
+
+You can create a slider, checkbox, or picker (drop down) and have more than one
+
+
+
+**Example from the regression class**
+```{r}
+
+library(manipulate)
+myHist <- function(mu){
+  hist(galton$child,col="blue",breaks=100)
+  lines(c(mu, mu), c(0, 150),col="red",lwd=5)
+  mse <- mean((galton$child - mu)^2)
+  text(63, 150, paste("mu = ", mu))
+  text(63, 140, paste("MSE = ", round(mse, 2)))
+}
+manipulate(myHist(mu), mu = slider(62, 74, step = 0.5))
+```
+
+
+#rCharts
+<http://ramnathv.github.io/rCharts/>
+```{r}
+require(slidify)
+require(rCharts)
+      haireye = as.data.frame(HairEyeColor)
+n1 <- nPlot(Freq ~ Hair, group = 'Eye', type = 'multiBarChart',
+  data = subset(haireye, Sex == 'Male')
+)
+
+n1$save('fig/n1.html', cdn = TRUE)
+cat('<iframe src="fig/n1.html" width=100%, height=600></iframe>')
+
+```
+
+**Deconstructing another example**
+```{r}
+## Example 1 Facetted Scatterplot
+names(iris) = gsub("\\.", "", names(iris))
+r1 <- rPlot(SepalLength ~ SepalWidth | Species, data = iris, color = 'Species', type = 'point')
+r1$save('fig/r1.html', cdn = TRUE)
+cat('<iframe src="fig/r1.html" width=100%, height=600></iframe>')
+```
+
+
+**Example 2 Facetted Barplot**
+```{r}
+hair_eye = as.data.frame(HairEyeColor)
+r2 <- rPlot(Freq ~ Hair | Eye, color = 'Eye', data = hair_eye, type = 'bar')
+r2$save('fig/r2.html', cdn = TRUE)
+cat('<iframe src="fig/r2.html" width=100%, height=600></iframe>')
+```
+
+
+**How to get the js/html or publish an rChart**
+Now you can add whatever you'd like
+
+```{r}
+
+r1 <- rPlot(mpg ~ wt | am + vs, data = mtcars, type = "point", color = "gear")
+r1$print("chart1") # print out the js 
+r1$save('myPlot.html') #save as html file
+r1$publish('myPlot', host = 'gist') # save to gist, rjson required
+r1$publish('myPlot', host = 'rpubs') # save to rpubs
+```
+
+**morris**
+```{r}
+data(economics, package = "ggplot2")
+econ <- transform(economics, date = as.character(date))
+m1 <- mPlot(x = "date", y = c("psavert", "uempmed"), type = "Line", data = econ)
+m1$set(pointSize = 0, lineWidth = 1)
+m1$save('fig/m1.html', cdn = TRUE)
+cat('<iframe src="fig/m1.html" width=100%, height=600></iframe>')
+```
+
+
+**xCharts**
+```{r}
+require(reshape2)
+uspexp <- melt(USPersonalExpenditure)
+names(uspexp)[1:2] = c("category", "year")
+x1 <- xPlot(value ~ year, group = "category", data = uspexp, type = "line-dotted")
+x1$save('fig/x1.html', cdn = TRUE)
+cat('<iframe src="fig/x1.html" width=100%, height=600></iframe>')
+```
+
+
+**Leaflet**
+```{r}
+map3 <- Leaflet$new()
+map3$setView(c(51.505, -0.09), zoom = 13)
+map3$marker(c(51.5, -0.09), bindPopup = "<p> Hi. I am a popup </p>")
+map3$marker(c(51.495, -0.083), bindPopup = "<p> Hi. I am another popup </p>")
+map3$save('fig/map3.html', cdn = TRUE)
+cat('<iframe src="fig/map3.html" width=100%, height=600></iframe>')
+```
+
+
+**Rickshaw**
+```{r}
+usp = reshape2::melt(USPersonalExpenditure)
+# get the decades into a date Rickshaw likes
+usp$Var2 <- as.numeric(as.POSIXct(paste0(usp$Var2, "-01-01")))
+p4 <- Rickshaw$new()
+p4$layer(value ~ Var2, group = "Var1", data = usp, type = "area", width = 560)
+# add a helpful slider this easily; other features TRUE as a default
+p4$set(slider = TRUE)
+p4$save('fig/p4.html', cdn = TRUE)
+cat('<iframe src="fig/p4.html" width=100%, height=600></iframe>')
+```
+
+
+**highchart**
+```{r}
+h1 <- hPlot(x = "Wr.Hnd", y = "NW.Hnd", data = MASS::survey, type = c("line", 
+    "bubble", "scatter"), group = "Clap", size = "Age")
+h1$save('fig/h1.html', cdn = TRUE)
+cat('<iframe src="fig/h1.html" width=100%, height=600></iframe>')
+```
+
+
+rCharts summarized
+
+rCharts makes creating interactive javascript visualizations in R ridiculously easy
+However, non-trivial customization is going to require knowledge of javascript
+If what you want is not too big of a deviation from the rCharts examples, then it's awesome
+Otherwise, it's challenging to extend without fairly deep knowledge of the JS libraries that it's calling.
+rCharts is under fairly rapid development
+
+
+
+#plotly
+```{r}
+library("devtools")
+install_github("ropensci/plotly")
+
+#Plotly's R package is updated frequently! To upgrade, just re-install:
+
+devtools::install_github("ropensci/plotly")
+
+library(plotly)
+set_credentials_file("eckameni", "3k0dxfzkoh")
+
+```
+
+
+**Start plotting!**
+Make a plot with ggplot2, as usual:
+```{r}
+library(ggplot2)
+data(iris)
+ggiris <- qplot(Petal.Width, Sepal.Length, data = iris, color = Species)
+ggiris
+#Now make this plot interactive and online. To do this, first instantiate a Plotly object:
+
+py <- plotly()
+#And call the ggplotly() method to convert your ggplot2 plot into a Plotly plot:
+
+r <- py$ggplotly(ggiris)
+#Your online, interactive, collaborative plot lives at this URL:
+
+r$response$url
+```
+
+
+
+example
+```{r}
+load("courseraData.rda")
+```
+
